@@ -7,9 +7,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.lang.Arrays;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,16 +26,18 @@ public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        return Arrays.asList(SecurityConfig.PUBLIC_ENDPOINTS)
+            .stream()
+            .map(url -> PathPatternRequestMatcher.withDefaults().matcher(url))
+            .anyMatch(matcher -> matcher.matches(request));
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
-
-        String requestURI = request.getRequestURI();
-        if (requestURI.startsWith("/auth/") || requestURI.equals("/swagger-ui.html")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
 
         String auth = request.getHeader("Authorization");
 

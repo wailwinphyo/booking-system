@@ -11,10 +11,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.app.booking_system.dto.BookingResponseDto;
 import com.app.booking_system.dto.ClassScheduleResponse;
-import com.app.booking_system.entity.Booking;
 import com.app.booking_system.service.BookingService;
-import com.app.booking_system.service.ClassSchedulerService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -54,7 +53,7 @@ public class BookingController {
 
     @Operation(summary = "Get user bookings", description = "Get all bookings for a user by email.")
     @GetMapping("/user")
-    public List<Booking> getUserBookings() {
+    public List<BookingResponseDto> getUserBookings() {
         Authentication authentication = SecurityContextHolder
                 .getContext()
                 .getAuthentication();

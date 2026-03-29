@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.app.booking_system.dto.ClassScheduleResponse;
 import com.app.booking_system.entity.Booking;
+import com.app.booking_system.dto.BookingResponseDto;
 import com.app.booking_system.entity.ClassSchedule;
 import com.app.booking_system.entity.UserEntity;
 import com.app.booking_system.entity.UserPackage;
@@ -175,9 +176,21 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public List<Booking> getUserBookings(String email) {
+    public List<BookingResponseDto> getUserBookings(String email) {
         UserEntity user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        return bookingRepository.findByUser(user);
+        List<Booking> bookings = bookingRepository.findByUser(user);
+        return bookings.stream().map(this::toDto).toList();
+    }
+
+    private BookingResponseDto toDto(Booking booking) {
+        return new BookingResponseDto(
+            booking.getId(),
+            booking.getClassSchedule().getName(),
+            booking.getClassSchedule().getStartTime(),
+            booking.getClassSchedule().getEndTime(),
+            booking.getStatus(),
+            booking.getClassSchedule().getCountry()
+        );
     }
 
     @Override

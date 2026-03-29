@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.booking_system.dto.ResetPasswordRequest;
+import com.app.booking_system.dto.UserProfileDto;
 import com.app.booking_system.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -63,12 +64,14 @@ public class AuthController {
 
     @Operation(summary = "Get user profile", description = "Get the profile of a user by email.")
     @GetMapping("/profile")
-    public String getProfile() {
+    @SecurityRequirement(name = "bearerAuth")
+    public UserProfileDto getProfile() {
         Authentication authentication = SecurityContextHolder
                 .getContext()
                 .getAuthentication();
         String email = authentication.getName(); 
 
+        // Assuming service.getProfile(email) returns a DTO or entity, not a String
         return service.getProfile(email);
     }
 
@@ -87,7 +90,5 @@ public class AuthController {
     @PostMapping("/reset-password")
     public boolean resetPassword(@RequestBody ResetPasswordRequest request) {
         return service.resetPassword(request.newPassword(), request.token());
-    }
-
-    
+    }    
 }

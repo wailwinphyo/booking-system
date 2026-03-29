@@ -1,5 +1,7 @@
 package com.app.booking_system.service;
 
+import com.app.booking_system.dto.UserProfileDto;
+
 public interface AuthService {
 
     String register(String email, String password);
@@ -8,7 +10,7 @@ public interface AuthService {
 
     boolean verifyEmail(String email, String token);
 
-    String getProfile(String email);
+    UserProfileDto getProfile(String email);
 
     boolean changePassword(String email, String oldPassword, String newPassword);
 

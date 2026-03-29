@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.app.booking_system.entity.Role;
+import com.app.booking_system.dto.UserProfileDto;
 import com.app.booking_system.entity.UserEntity;
 import com.app.booking_system.repository.UserRepository;
 import com.app.booking_system.security.JwtUtil;
@@ -75,9 +76,15 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String getProfile(String email) {
+    public UserProfileDto getProfile(String email) {
         UserEntity user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        return "Email: " + user.getEmail() + ", Verified: " + user.isVerified();
+        return new UserProfileDto(
+            user.getId(),
+            user.getEmail(),
+            user.getName(),
+            user.getRoles().stream().map(Role::getName).toList(),
+            user.isVerified()
+        );
     }
 
     @Override
