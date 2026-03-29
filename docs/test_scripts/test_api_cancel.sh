@@ -10,7 +10,7 @@ do
     echo "Canceling for user $i: $EMAIL"
 
     # 1. Login
-    echo "Logging in..."
+    echo "Logging in..."  
     TOKEN=$(curl -s -X POST http://localhost:8080/auth/login -u $EMAIL:password)
     echo "Token: $TOKEN"
 

@@ -26,5 +26,6 @@ public class UserPackage {
     private PackageEntity packageEntity;
     
     private int remainingCredits;
+    
     private LocalDateTime expiryDate;
 }

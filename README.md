@@ -10,13 +10,14 @@ A comprehensive booking system for fitness classes with user management, package
 - **Waitlist**: Automatic waitlist management when classes are full
 - **Concurrency Control**: Redis-based locking and counters to prevent overbooking
 - **Check-in System**: Time-based check-in for booked classes
+- **Scheduled Jobs**: Automatic processing of class end events using Quartz scheduler
 - **RESTful API**: Complete API with Swagger documentation
 - **Database Migrations**: Flyway migrations for schema and default data
 
 ## Technologies
 
 - **Backend**: Spring Boot 3.x
-- **Database**: H2 (dev) / PostgreSQL (prod)
+- **Database**: PostgreSQL
 - **Cache**: Redis for concurrency control and counters
 - **Security**: JWT authentication with Spring Security
 - **API Documentation**: Swagger/OpenAPI
@@ -25,10 +26,11 @@ A comprehensive booking system for fitness classes with user management, package
 
 ## Prerequisites
 
-- Java 17 or higher
+- Java 21 or higher
 - Maven 3.6+
 - Docker & Docker Compose (for containerized deployment)
 - PostgreSQL & Redis (for local development without Docker)
+
 
 ## Quick Start with Docker Compose
 
@@ -38,13 +40,10 @@ A comprehensive booking system for fitness classes with user management, package
    cd booking-system
    ```
 
-2. **Set environment variables (optional)**
-   ```bash
-   export DB_USERNAME=your_db_user
-   export DB_PASSWORD=your_db_password
-   ```
+2. **Set environment variables**
+   Edit the `.env` file if needed (default: `user`/`password`).
 
-3. **Build and run**
+3. **Build and run everything**
    ```bash
    mvn clean package -DskipTests
    docker-compose up --build
@@ -52,8 +51,21 @@ A comprehensive booking system for fitness classes with user management, package
 
 4. **Access the application**
    - API: http://localhost:8080
-   - Swagger UI: http://localhost:8080/swagger-ui.html
-   - H2 Console: http://localhost:8080/h2-console (JDBC URL: jdbc:h2:mem:testdb)
+   - **Swagger UI**: http://localhost:8080/swagger-ui.html (interactive API docs)
+
+
+## Architecture Diagram
+
+The following diagram shows the high-level architecture of the booking system:
+
+![Booking Service Architecture](docs/booking-service-diagram.png)
+
+
+## Database Entity Relationship Diagram
+
+The following diagram was generated from the actual database schema (DBeaver):
+
+![Database ER Diagram](docs/database-diagram.png)
 
 ## Local Development Setup
 
@@ -119,13 +131,10 @@ The system comes with pre-loaded data:
 
 ### Bookings
 - `GET /bookings/classes/{country}` - Get class schedules
-- `POST /bookings/book/{classId}` - Book a class
+- `POST /bookings/book/{classId}` - Book a class (automatically adds to waitlist if full)
 - `DELETE /bookings/cancel/{bookingId}` - Cancel booking
 - `GET /bookings/user` - Get user's bookings
 - `POST /bookings/checkin/{bookingId}` - Check-in to class
-
-### Waitlist
-- `POST /bookings/waitlist/{classId}` - Add to waitlist
 
 ## Database Schema
 
@@ -148,8 +157,9 @@ Run unit and integration tests:
 mvn test
 ```
 
+
 ### API Testing Scripts
-The project includes comprehensive test scripts for concurrent booking scenarios:
+The project includes comprehensive test scripts in `docs/test_scripts/` to simulate concurrent booking scenarios and user flows:
 
 - **test_api.sh**: Main test script for 50 concurrent users
 - **test_api_user_create.sh**: User creation script
@@ -157,18 +167,16 @@ The project includes comprehensive test scripts for concurrent booking scenarios
 
 To run the test script:
 ```bash
-# Make executable (Linux/Mac)
+cd docs/test_scripts
 chmod +x test_api.sh
-
-# Run tests
 ./test_api.sh
 ```
 
-The test script simulates:
+The test scripts simulate:
 - User registration and package purchase
 - Concurrent booking attempts (50 users booking simultaneously)
 - Cancellation and waitlist promotion
-- Verification of no overbooking
+- Verification of no overbooking (concurrency control)
 
 ## Architecture
 
@@ -178,11 +186,16 @@ The system uses Redis for distributed locking and counters to handle concurrent 
 - **Counters**: `booked:class:{classId}` tracks real-time booking counts
 - **Atomic Operations**: Redis increment/decrement ensure consistency
 
+### Scheduled Jobs
+Quartz Scheduler is used for time-based job execution:
+- **Class End Jobs**: Automatically triggered at class end time to process refunds for waitlisted users
+- **Spring Integration**: Jobs are Spring-managed with dependency injection enabled
+
 ### Service Layer
 - **AuthService**: Handles authentication and user management
 - **PackageService**: Manages package purchasing and credit tracking
 - **BookingService**: Core booking logic with concurrency control
-- **SchedulerService**: Background tasks (if any)
+- **ClassSchedulerService**: Manages Quartz-based scheduling for class end processing
 
 ## Configuration
 
@@ -200,12 +213,15 @@ Key configuration in `application.yaml`:
 
 ## Deployment
 
+
 ### Docker Compose
 The `docker-compose.yml` includes:
-- Spring Boot application
+- Spring Boot application (see `app` service)
 - PostgreSQL database
 - Redis cache
-- Automatic service discovery
+- Automatic service discovery and environment variable configuration
+
+You can modify the `app` service in `docker-compose.yml` to enable or adjust the Spring Boot container as needed.
 
 ### Production Considerations
 - Use external PostgreSQL and Redis instances

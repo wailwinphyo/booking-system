@@ -64,6 +64,7 @@ public class BookingServiceImpl implements BookingService {
                 .filter(up -> up.getRemainingCredits() > 0 && up.getExpiryDate().isAfter(LocalDateTime.now()))
                 .sorted((a, b) -> Integer.compare(b.getRemainingCredits(), a.getRemainingCredits()))
                 .collect(Collectors.toList());
+                
         long totalCredits = validPackages.stream().mapToLong(UserPackage::getRemainingCredits).sum();
         if (totalCredits < classSchedule.getRequiredCredits()) {
             throw new RuntimeException("No valid package with sufficient credits");
@@ -71,7 +72,7 @@ public class BookingServiceImpl implements BookingService {
 
         String lockKey = "lock:class:" + classId;
         String countKey = "booked:class:" + classId;
-        
+
         try {
             // Acquire lock
             Boolean locked = redis.opsForValue().setIfAbsent(lockKey, "locked", 10, TimeUnit.SECONDS);
@@ -101,7 +102,8 @@ public class BookingServiceImpl implements BookingService {
             // Deduct credits
             long toDeduct = classSchedule.getRequiredCredits();
             for (UserPackage up : validPackages) {
-                if (toDeduct <= 0) break;
+                if (toDeduct <= 0)
+                    break;
                 long deductFromThis = Math.min(toDeduct, up.getRemainingCredits());
                 up.setRemainingCredits((int) (up.getRemainingCredits() - deductFromThis));
                 toDeduct -= deductFromThis;
@@ -147,17 +149,24 @@ public class BookingServiceImpl implements BookingService {
         redis.opsForValue().decrement("booked:class:" + booking.getClassSchedule().getId());
 
         if (refund) {
-            // Refund credits
-            List<UserPackage> userPackages = userPackageRepository.findByUserIdAndPackageEntityCountry(user.getId(),
-                    booking.getClassSchedule().getCountry());
-            for (UserPackage up : userPackages) {
-                if (up.getPackageEntity().getId().equals(booking.getClassSchedule().getRequiredCredits())) { // Assuming
-                                                                                                             // credits
-                                                                                                             // match
-                    up.setRemainingCredits(up.getRemainingCredits() + booking.getClassSchedule().getRequiredCredits());
-                    userPackageRepository.save(up);
+            // Refund credits by distributing across packages
+            long toRefund = booking.getClassSchedule().getRequiredCredits();
+            List<UserPackage> userPackages = userPackageRepository
+                    .findByUserIdAndPackageEntityCountry(user.getId(),
+                            booking.getClassSchedule().getCountry());
+            List<UserPackage> validPackages = userPackages.stream()
+                    .filter(up -> up.getExpiryDate().isAfter(LocalDateTime.now()))
+                    .sorted((a, b) -> b.getExpiryDate().compareTo(a.getExpiryDate()))
+                    .collect(Collectors.toList());
+
+            for (UserPackage up : validPackages) {
+                if (toRefund <= 0)
                     break;
-                }
+                int originalCredits = up.getPackageEntity().getCredits();
+                long addBack = Math.min(toRefund, originalCredits - up.getRemainingCredits());
+                up.setRemainingCredits(up.getRemainingCredits() + (int) addBack);
+                toRefund -= addBack;
+                userPackageRepository.save(up);
             }
         }
 
@@ -221,6 +230,28 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
+        // Check user has package for the country with credits
+        List<UserPackage> userPackages = userPackageRepository.findByUserIdAndPackageEntityCountry(user.getId(),
+                classSchedule.getCountry());
+        List<UserPackage> validPackages = userPackages.stream()
+                .filter(up -> up.getRemainingCredits() > 0 && up.getExpiryDate().isAfter(LocalDateTime.now()))
+                .sorted((a, b) -> Integer.compare(b.getRemainingCredits(), a.getRemainingCredits()))
+                .collect(Collectors.toList());
+        long totalCredits = validPackages.stream().mapToLong(UserPackage::getRemainingCredits).sum();
+        if (totalCredits < classSchedule.getRequiredCredits()) {
+            throw new RuntimeException("No valid package with sufficient credits");
+        }
+
+        // Deduct credits
+        long toDeduct = classSchedule.getRequiredCredits();
+        for (UserPackage up : validPackages) {
+            if (toDeduct <= 0) break;
+            long deductFromThis = Math.min(toDeduct, up.getRemainingCredits());
+            up.setRemainingCredits((int) (up.getRemainingCredits() - deductFromThis));
+            toDeduct -= deductFromThis;
+            userPackageRepository.save(up);
+        }
+
         Waitlist waitlist = new Waitlist();
         waitlist.setUser(user);
         waitlist.setClassSchedule(classSchedule);
@@ -232,21 +263,25 @@ public class BookingServiceImpl implements BookingService {
         List<Waitlist> waitlists = waitlistRepository.findByClassScheduleIdOrderByPositionAsc(classId);
         if (!waitlists.isEmpty()) {
             Waitlist first = waitlists.get(0);
-            // Check if user has credits
+            // Check if user has sufficient credits
             List<UserPackage> userPackages = userPackageRepository.findByUserIdAndPackageEntityCountry(
                     first.getUser().getId(), first.getClassSchedule().getCountry());
-            UserPackage validPackage = null;
-            for (UserPackage up : userPackages) {
-                if (up.getRemainingCredits() >= first.getClassSchedule().getRequiredCredits()
-                        && up.getExpiryDate().isAfter(LocalDateTime.now())) {
-                    validPackage = up;
-                    break;
+            List<UserPackage> validPackages = userPackages.stream()
+                    .filter(up -> up.getRemainingCredits() > 0 && up.getExpiryDate().isAfter(LocalDateTime.now()))
+                    .sorted((a, b) -> Integer.compare(b.getRemainingCredits(), a.getRemainingCredits()))
+                    .collect(Collectors.toList());
+            long totalCredits = validPackages.stream().mapToLong(UserPackage::getRemainingCredits).sum();
+            if (totalCredits >= first.getClassSchedule().getRequiredCredits()) {
+                // Deduct credits
+                long toDeduct = first.getClassSchedule().getRequiredCredits();
+                for (UserPackage up : validPackages) {
+                    if (toDeduct <= 0)
+                        break;
+                    long deductFromThis = Math.min(toDeduct, up.getRemainingCredits());
+                    up.setRemainingCredits((int) (up.getRemainingCredits() - deductFromThis));
+                    toDeduct -= deductFromThis;
+                    userPackageRepository.save(up);
                 }
-            }
-            if (validPackage != null) {
-                validPackage.setRemainingCredits(
-                        validPackage.getRemainingCredits() - first.getClassSchedule().getRequiredCredits());
-                userPackageRepository.save(validPackage);
 
                 Booking booking = new Booking();
                 booking.setUser(first.getUser());
@@ -267,5 +302,62 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
         }
+    }
+
+    @Override
+    @Transactional
+    public void processRefundEndedClasses() {
+        List<ClassSchedule> endedClasses = classScheduleRepository.findByEndTimeBefore(LocalDateTime.now());
+        for (ClassSchedule cs : endedClasses) {
+            List<Waitlist> waitlists = waitlistRepository.findByClassScheduleIdOrderByPositionAsc(cs.getId());
+            for (Waitlist w : waitlists) {
+                // Refund credits by distributing across packages
+                long toRefund = cs.getRequiredCredits();
+                List<UserPackage> userPackages = userPackageRepository.findByUserIdAndPackageEntityCountry(
+                        w.getUser().getId(), cs.getCountry());
+                List<UserPackage> validPackages = userPackages.stream()
+                    .filter(up -> up.getExpiryDate().isAfter(LocalDateTime.now()))
+                    .sorted((a, b) -> b.getExpiryDate().compareTo(a.getExpiryDate()))
+                    .collect(Collectors.toList());
+                for (UserPackage up : validPackages) {
+                    if (toRefund <= 0) break;
+                    int originalCredits = up.getPackageEntity().getCredits();
+                    long addBack = Math.min(toRefund, originalCredits - up.getRemainingCredits());
+                    up.setRemainingCredits(up.getRemainingCredits() + (int) addBack);
+                    toRefund -= addBack;
+                    userPackageRepository.save(up);
+                }
+            }
+            // Delete the waitlist entries after refund
+            waitlistRepository.deleteAll(waitlists);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void refundWaitlistCredits(Long classId) {
+        ClassSchedule cs = classScheduleRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+        List<Waitlist> waitlists = waitlistRepository.findByClassScheduleIdOrderByPositionAsc(classId);
+        for (Waitlist w : waitlists) {
+            // Refund credits by distributing across packages
+            long toRefund = cs.getRequiredCredits();
+            List<UserPackage> userPackages = userPackageRepository.findByUserIdAndPackageEntityCountry(
+                    w.getUser().getId(), cs.getCountry());
+            List<UserPackage> validPackages = userPackages.stream()
+                .filter(up -> up.getExpiryDate().isAfter(LocalDateTime.now()))
+                .sorted((a, b) -> b.getExpiryDate().compareTo(a.getExpiryDate()))
+                .collect(Collectors.toList());
+            for (UserPackage up : validPackages) {
+                if (toRefund <= 0) break;
+                int originalCredits = up.getPackageEntity().getCredits();
+                long addBack = Math.min(toRefund, originalCredits - up.getRemainingCredits());
+                up.setRemainingCredits(up.getRemainingCredits() + (int) addBack);
+                toRefund -= addBack;
+                userPackageRepository.save(up);
+            }
+        }
+        // Delete the waitlist entries after refund
+        waitlistRepository.deleteAll(waitlists);
     }
 }

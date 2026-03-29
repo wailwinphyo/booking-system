@@ -12,4 +12,6 @@ public interface BookingService {
     List<ClassScheduleResponse> getClassSchedules(String country);
     boolean checkIn(String email, Long bookingId);
     void addToWaitlist(String email, Long classId);
+    void refundWaitlistCredits(Long classId);
+    void processRefundEndedClasses();
 }
