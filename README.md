@@ -67,28 +67,40 @@ The following diagram was generated from the actual database schema (DBeaver):
 
 ![Database ER Diagram](docs/database-diagram.png)
 
-## Local Development Setup
 
-1. **Start dependencies**
+
+## Local Development Setup (Step-by-Step)
+
+Follow these steps to build and run the project locally, using Docker Compose for dependencies (PostgreSQL and Redis) and running the Spring Boot app on your host:
+
+1. **Start PostgreSQL and Redis with Docker Compose**
    ```bash
-   # Start PostgreSQL (or use Docker)
-   docker run -d --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 postgres:13
-
-   # Start Redis
-   docker run -d --name redis -p 6379:6379 redis:alpine
+   docker-compose up -d postgres redis
    ```
 
-2. **Configure environment**
+2. **Configure environment variables**
+   - Set the following environment variables (or update `application.yaml` as needed):
+     ```bash
+     export DB_USERNAME=user
+     export DB_PASSWORD=password
+     # Optionally set JWT_SECRET and other variables if needed
+     ```
+
+3. **Build the project**
    ```bash
-   # Set database credentials
-   export DB_USERNAME=postgres
-   export DB_PASSWORD=password
+   mvn clean package -DskipTests
    ```
 
-3. **Run the application**
+4. **Run the application**
    ```bash
    mvn spring-boot:run
+   # or run the built jar:
+   java -jar target/booking-system-0.0.1-SNAPSHOT.jar
    ```
+
+5. **Access the API and Swagger UI**
+   - API: http://localhost:8080
+   - Swagger UI: http://localhost:8080/swagger-ui.html
 
 ## API Documentation
 
@@ -146,8 +158,17 @@ The system comes with pre-loaded data:
 - **Booking**: Confirmed bookings
 - **Waitlist**: Waitlist entries with position
 
+
 ### Migrations
 Database schema and default data are managed through Flyway migrations in `src/main/resources/db/migration/`.
+
+The following Flyway migration scripts are included:
+
+- **V1__Create_tables.sql**: Creates all core tables (users, packages, bookings, schedules, waitlist, etc.)
+- **V2__Insert_default_data.sql**: Inserts default admin user, sample packages, and initial data for testing/demo.
+- **V3__Add_more_classes.sql**: Adds additional sample class schedules for more comprehensive testing.
+
+These scripts ensure your database is always up-to-date and pre-populated for development, testing, and demo purposes.
 
 ## Testing
 
