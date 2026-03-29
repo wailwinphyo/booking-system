@@ -60,10 +60,9 @@ public class BookingServiceImpl implements BookingService {
         // Check user has package for the country with credits
         List<UserPackage> userPackages = userPackageRepository.findByUserIdAndPackageEntityCountry(user.getId(),
                 classSchedule.getCountry());
-        // Sort by expiry date ascending to use the one expiring soonest
-        userPackages.sort((a, b) -> a.getExpiryDate().compareTo(b.getExpiryDate()));
         List<UserPackage> validPackages = userPackages.stream()
                 .filter(up -> up.getRemainingCredits() > 0 && up.getExpiryDate().isAfter(LocalDateTime.now()))
+                .sorted((a, b) -> Integer.compare(b.getRemainingCredits(), a.getRemainingCredits()))
                 .collect(Collectors.toList());
         long totalCredits = validPackages.stream().mapToLong(UserPackage::getRemainingCredits).sum();
         if (totalCredits < classSchedule.getRequiredCredits()) {
@@ -104,7 +103,7 @@ public class BookingServiceImpl implements BookingService {
             for (UserPackage up : validPackages) {
                 if (toDeduct <= 0) break;
                 long deductFromThis = Math.min(toDeduct, up.getRemainingCredits());
-                up.setRemainingCredits(up.getRemainingCredits() - deductFromThis);
+                up.setRemainingCredits((int) (up.getRemainingCredits() - deductFromThis));
                 toDeduct -= deductFromThis;
                 userPackageRepository.save(up);
             }
