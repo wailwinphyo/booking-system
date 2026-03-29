@@ -40,11 +40,5 @@ app:
     secret: RobnInl9bsW+O1PHo/L31lZYotOOyttoGGx/xxKK8Jc=
     expiration: 86_400_000
 
-# springdoc:
-#     swagger-ui:
-#         path: /swagger-ui.html
-#     api-docs:
-#         path: /api-docs
-
 flyway:
     baseline-on-migrate: true

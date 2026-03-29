@@ -20,7 +20,6 @@ public class GlobalExceptionHandler {
         error.put("timestamp", LocalDateTime.now());
         error.put("error", ex.getMessage());
         error.put("status", HttpStatus.BAD_REQUEST.value());
-        System.out.println("GLOBAL");
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 }

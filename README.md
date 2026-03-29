@@ -51,7 +51,7 @@ A comprehensive booking system for fitness classes with user management, package
 
 4. **Access the application**
    - API: http://localhost:8080
-   - **Swagger UI**: http://localhost:8080/swagger-ui.html (interactive API docs)
+   - **Swagger UI**: http://localhost:8080/swagger-ui/index.html (interactive API docs)
 
 
 ## Architecture Diagram
@@ -100,12 +100,12 @@ Follow these steps to build and run the project locally, using Docker Compose fo
 
 5. **Access the API and Swagger UI**
    - API: http://localhost:8080
-   - Swagger UI: http://localhost:8080/swagger-ui.html
+   - Swagger UI: http://localhost:8080/swagger-ui/index.html
 
 ## API Documentation
 
 The API is fully documented with Swagger. Access the interactive documentation at:
-- **Swagger UI**: http://localhost:8080/swagger-ui.html
+- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 - **OpenAPI JSON**: http://localhost:8080/v3/api-docs
 
 ### Authentication
